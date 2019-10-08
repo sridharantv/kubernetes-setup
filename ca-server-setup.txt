@@ -1,1 +1,133 @@
- 
+/etc/pki/tls/openssl.cnf
+------------------------
+copy_extensions = copy
+
+[ SERVER_CERT ]
+basicConstraints=CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
+
+[ CLIENT_CERT ]
+basicConstraints=CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
+
+[ SERVER_CLIENT_CERT ]
+basicConstraints=CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth,serverAuth
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
+
+============
+
+mkdir -p \
+/etc/pki/tls/kubernetes/etcd/server/private \
+/etc/pki/tls/kubernetes/etcd/peer/private \
+/etc/pki/tls/kubernetes/etcd/client/private \
+/etc/pki/tls/kubernetes/etcd/ca/private
+
+touch /etc/pki/CA/index.txt
+echo 01 > /etc/pki/CA/serial
+
+##############
+
+openssl req \
+-x509 \
+-newkey rsa:2048 \
+-sha256 \
+-nodes \
+-keyout /etc/pki/tls/kubernetes/etcd/ca/private/etcd-ca-key.pem \
+-out /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem \
+-days 3650 \
+-subj '/CN=ETCD Root CA'
+
+##############
+
+name=etcd;
+type=server
+ip1=192.168.101.126
+ip2=192.168.101.127
+ip3=192.168.101.128
+
+openssl req \
+-newkey rsa:2048 \
+-sha256 \
+-nodes \
+-days 365 \
+-reqexts SAN \
+-keyout /etc/pki/tls/kubernetes/etcd/${type}/private/${name}-${type}-key.pem \
+-out /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}-csr.pem \
+-subj "/CN=etcd-${type}" \
+-config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:etcd-${type},IP:${ip1},IP:${ip2},IP:${ip3}"))
+
+openssl ca \
+-keyfile /etc/pki/tls/kubernetes/etcd/ca/private/etcd-ca-key.pem \
+-cert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem \
+-days 365 \
+-extensions SERVER_CLIENT_CERT \
+-policy policy_anything \
+-in /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}-csr.pem \
+-out /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}.pem
+
+#################
+
+name=etcd;
+type=peer
+ip1=192.168.101.126
+ip2=192.168.101.127
+ip3=192.168.101.128
+
+openssl req \
+-newkey rsa:2048 \
+-sha256 \
+-nodes \
+-days 365 \
+-reqexts SAN \
+-keyout /etc/pki/tls/kubernetes/etcd/${type}/private/${name}-${type}-key.pem \
+-out /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}-csr.pem \
+-subj "/CN=etcd-${type}" \
+-config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:etcd-${type},IP:${ip1},IP:${ip2},IP:${ip3}"))
+
+openssl ca \
+-keyfile /etc/pki/tls/kubernetes/etcd/ca/private/etcd-ca-key.pem \
+-cert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem \
+-days 365 \
+-extensions SERVER_CLIENT_CERT \
+-policy policy_anything \
+-in /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}-csr.pem \
+-out /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}.pem
+
+#####################
+
+name=etcd;
+type=client
+
+openssl req \
+-newkey rsa:2048 \
+-sha256 \
+-nodes \
+-days 365 \
+-keyout /etc/pki/tls/kubernetes/etcd/${type}/private/${name}-${type}-key.pem \
+-out /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}-csr.pem \
+-subj "/CN=etcd client"
+
+openssl ca \
+-keyfile /etc/pki/tls/kubernetes/etcd/ca/private/etcd-ca-key.pem \
+-cert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem \
+-days 365 \
+-extensions CLIENT_CERT \
+-policy policy_anything \
+-in /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}-csr.pem \
+-out /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}.pem
+
+##################
+
+scp -r /etc/pki/tls/kubernetes/etcd osboxes@192.168.101.126:/etc/pki/tls/kubernetes/
+scp -r /etc/pki/tls/kubernetes/etcd osboxes@192.168.101.127:/etc/pki/tls/kubernetes/
+scp -r /etc/pki/tls/kubernetes/etcd osboxes@192.168.101.128:/etc/pki/tls/kubernetes/
+

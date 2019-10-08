@@ -14,106 +14,12 @@ mv -f /tmp/etcd-download-test/etcdctl /usr/bin/
 systemctl disable firewalld.service
 systemctl stop firewalld.service
 
-useradd etcd
 mkdir /data
-chown etcd:etcd /data
+chown osboxes:osboxes /data
 
 mkdir -p \
-/etc/pki/tls/kubernetes/etcd/server/private \
-/etc/pki/tls/kubernetes/etcd/peer/private \
-/etc/pki/tls/kubernetes/etcd/client/private \
-/etc/pki/tls/kubernetes/etcd/ca/private
-
-touch /etc/pki/CA/index.txt
-echo 01 > /etc/pki/CA/serial
-
-scp -r osboxes@192.168.101.126:/etc/pki/tls/kubernetes/etcd/* /etc/pki/tls/kubernetes/etcd/
-
-openssl.cnf
-============
-copy_extensions = copy
-
-[ SERVER_CERT ]
-basicConstraints=CA:FALSE
-keyUsage = nonRepudiation, digitalSignature, keyEncipherment
-extendedKeyUsage = serverAuth
-subjectKeyIdentifier=hash
-authorityKeyIdentifier=keyid,issuer
-
-[ CLIENT_CERT ]
-basicConstraints=CA:FALSE
-keyUsage = nonRepudiation, digitalSignature, keyEncipherment
-extendedKeyUsage = clientAuth
-subjectKeyIdentifier=hash
-authorityKeyIdentifier=keyid,issuer
-
-[ SERVER_CLIENT_CERT ]
-basicConstraints=CA:FALSE
-keyUsage = nonRepudiation, digitalSignature, keyEncipherment
-extendedKeyUsage = clientAuth,serverAuth
-subjectKeyIdentifier=hash
-authorityKeyIdentifier=keyid,issuer
-
-openssl req \
--x509 \
--newkey rsa:2048 \
--sha256 \
--nodes \
--keyout /etc/pki/tls/kubernetes/etcd/ca/private/etcd-ca-key.pem \
--out /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem \
--days 3650 \
--subj '/CN=ETCD Root CA'
-
-##############
-
-name=etcd;
-#type=server
-type=peer
-ip1=192.168.101.126
-ip2=192.168.101.127
-ip3=192.168.101.128
-
-openssl req \
--newkey rsa:2048 \
--sha256 \
--nodes \
--days 365 \
--reqexts SAN \
--keyout /etc/pki/tls/kubernetes/etcd/${type}/private/${name}-${type}-key.pem \
--out /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}-csr.pem \
--subj "/CN=etcd-${type}" \
--config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:etcd-${type},IP:${ip1},IP:${ip2},IP:${ip3}"))
-
-openssl ca \
--keyfile /etc/pki/tls/kubernetes/etcd/ca/private/etcd-ca-key.pem \
--cert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem \
--days 365 \
--extensions SERVER_CLIENT_CERT \
--policy policy_anything \
--in /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}-csr.pem \
--out /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}.pem
-
-####################
-name=etcd;
-type=client
-
-openssl req \
--newkey rsa:2048 \
--sha256 \
--nodes \
--days 365 \
--keyout /etc/pki/tls/kubernetes/etcd/${type}/private/${name}-${type}-key.pem \
--out /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}-csr.pem \
--subj "/CN=etcd client"
-
-openssl ca \
--keyfile /etc/pki/tls/kubernetes/etcd/ca/private/etcd-ca-key.pem \
--cert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem \
--days 365 \
--extensions CLIENT_CERT \
--policy policy_anything \
--in /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}-csr.pem \
--out /etc/pki/tls/kubernetes/etcd/${type}/${name}-${type}.pem
+/etc/pki/tls/kubernetes
+chown osboxes:osboxes /etc/pki/tls/kubernetes
 
 #############################
 systemctl stop etcd
@@ -129,7 +35,7 @@ cat << EOF  > /usr/lib/systemd/system/etcd.service
 Description=ETCD 
 After=network.target
 [Service]
-User=etcd
+User=osboxes
 Restart=on-failure
 RestartSec=5s
 LimitNOFILE=40000
@@ -142,7 +48,7 @@ ExecStart=/usr/bin/etcd \\
   --initial-advertise-peer-urls=https://`hostname -i`:2380 \\
   --initial-cluster=etcd01=https://${ip1}:2380,etcd02=https://${ip2}:2380,etcd03=https://${ip3}:2380 \\
   --initial-cluster-token=etcd-cluster \\
-  --initial-cluster-state=existing \\
+  --initial-cluster-state=new \\
   --advertise-client-urls=https://`hostname -i`:2379 \\
   --cert-file=/etc/pki/tls/kubernetes/etcd/server/${name_var}-server.pem \\
   --key-file=/etc/pki/tls/kubernetes/etcd/server/private/${name_var}-server-key.pem \\
@@ -163,3 +69,40 @@ systemctl enable etcd
 systemctl start etcd
 systemctl status etcd
 ############################
+
+sed -i "s/--initial-cluster-state=new/--initial-cluster-state=existing/g" /usr/lib/systemd/system/etcd.service
+
+systemctl daemon-reload
+
+systemctl enable etcd
+systemctl start etcd
+systemctl status etcd
+
+=====================
+
+ip1=192.168.101.126
+ip2=192.168.101.127
+ip3=192.168.101.128
+
+ETCDCTL_API=3 etcdctl --endpoints=${ip1}:2379,${ip2}:2379,${ip3}:2379 --cacert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem --cert /etc/pki/tls/kubernetes/etcd/client/etcd-client.pem --key /etc/pki/tls/kubernetes/etcd/client/private/etcd-client-key.pem endpoint health
+
+ETCDCTL_API=3 etcdctl --endpoints=${ip1}:2379,${ip2}:2379,${ip3}:2379 --cacert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem --cert /etc/pki/tls/kubernetes/etcd/client/etcd-client.pem --key /etc/pki/tls/kubernetes/etcd/client/private/etcd-client-key.pem endpoint status
+
+ETCDCTL_API=3 etcdctl --endpoints=${ip1}:2379,${ip2}:2379,${ip3}:2379 --cacert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem --cert /etc/pki/tls/kubernetes/etcd/client/etcd-client.pem --key /etc/pki/tls/kubernetes/etcd/client/private/etcd-client-key.pem member list
+
+ETCDCTL_API=3 etcdctl --endpoints=${ip1}:2379 --cacert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem --cert /etc/pki/tls/kubernetes/etcd/client/etcd-client.pem --key /etc/pki/tls/kubernetes/etcd/client/private/etcd-client-key.pem put key1 value1
+
+ETCDCTL_API=3 etcdctl --endpoints=${ip1}:2379 --cacert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem --cert /etc/pki/tls/kubernetes/etcd/client/etcd-client.pem --key /etc/pki/tls/kubernetes/etcd/client/private/etcd-client-key.pem get key1
+
+ETCDCTL_API=3 etcdctl --endpoints=${ip2}:2379 --cacert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem --cert /etc/pki/tls/kubernetes/etcd/client/etcd-client.pem --key /etc/pki/tls/kubernetes/etcd/client/private/etcd-client-key.pem get key1
+
+ETCDCTL_API=3 etcdctl --endpoints=${ip3}:2379 --cacert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem --cert /etc/pki/tls/kubernetes/etcd/client/etcd-client.pem --key /etc/pki/tls/kubernetes/etcd/client/private/etcd-client-key.pem get key1
+
+ETCDCTL_API=3 etcdctl --endpoints=${ip3}:2379 --cacert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem --cert /etc/pki/tls/kubernetes/etcd/client/etcd-client.pem --key /etc/pki/tls/kubernetes/etcd/client/private/etcd-client-key.pem del key1
+
+ETCDCTL_API=3 etcdctl --endpoints=${ip1}:2379 --cacert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem --cert /etc/pki/tls/kubernetes/etcd/client/etcd-client.pem --key /etc/pki/tls/kubernetes/etcd/client/private/etcd-client-key.pem get key1
+
+ETCDCTL_API=3 etcdctl --endpoints=${ip2}:2379 --cacert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem --cert /etc/pki/tls/kubernetes/etcd/client/etcd-client.pem --key /etc/pki/tls/kubernetes/etcd/client/private/etcd-client-key.pem get key1
+
+ETCDCTL_API=3 etcdctl --endpoints=${ip3}:2379 --cacert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem --cert /etc/pki/tls/kubernetes/etcd/client/etcd-client.pem --key /etc/pki/tls/kubernetes/etcd/client/private/etcd-client-key.pem get key1
+
