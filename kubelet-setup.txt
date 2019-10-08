@@ -1,0 +1,57 @@
+mkdir -p /etc/kubernetes
+mkdir -p /etc/kubelet
+mkdir -p /etc/kubelet/certs
+chown osboxes:osboxes /etc/kubernetes /etc/kubelet /etc/kubelet/certs
+scp osboxes@192.168.101.118:/etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem /etc/kubernetes/ca.pem
+chown osboxes:osboxes /etc/kubernetes/ca.pem
+
+cat << EOF > /etc/kubelet/bootstrap-kubeconfig
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    certificate-authority: /etc/kubernetes/ca.pem
+    server: https://192.168.101.124
+  name: bootstrap
+contexts:
+- context:
+    cluster: bootstrap
+    user: kubelet-bootstrap
+  name: bootstrap
+current-context: bootstrap
+preferences: {}
+users:
+- name: kubelet-bootstrap
+  user:
+    token: 07401b.f395accd246ae52d
+EOF
+
+cat << EOF  > /usr/lib/systemd/system/kubelet.service
+[Unit]
+Description=KUBELET
+
+[Service]
+ExecStart=/usr/bin/kubelet \\
+--bootstrap-kubeconfig=/etc/kubelet/bootstrap-kubeconfig \\
+--cgroup-driver=systemd \\
+--cert-dir=/etc/kubelet/certs \\
+--kubeconfig=/etc/kubelet/kubelet-kubeconfig.yaml \\
+--pod-manifest-path=/etc/kubernetes/manifests \\
+--node-ip=`hostname -i` \\
+--register-node \\
+--rotate-certificates \\
+--cluster-dns=10.96.0.10 \\
+--rotate-server-certificates
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+
+systemctl enable kubelet
+systemctl stop kubelet
+systemctl start kubelet
+systemctl status kubelet
+
+

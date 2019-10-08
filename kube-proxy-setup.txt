@@ -1,0 +1,17 @@
+cat << EOF  > /usr/lib/systemd/system/kube-proxy.service
+[Unit]
+Description=KUBEPROXY
+
+[Service]
+ExecStart=/usr/bin/kube-proxy \\
+--kubeconfig=/etc/kubelet/kubelet-kubeconfig.yaml \\
+--proxy-mode=iptables
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable kube-proxy
+systemctl stop kube-proxy
+systemctl start kube-proxy

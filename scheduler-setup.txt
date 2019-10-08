@@ -1,0 +1,42 @@
+mkdir -p /etc/kubernetes/manifests
+
+KUBECONFIG=/etc/kubernetes/manifests/kube-scheduler.yaml kubectl config set-cluster default-cluster --server=https://192.168.101.124:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
+
+KUBECONFIG=/etc/kubernetes/manifests/kube-scheduler.yaml kubectl config set-credentials default-scheduler --client-key /etc/pki/tls/kubernetes/k8s/scheduler/client/private/scheduler-apiserver-client-key.pem --client-certificate /etc/pki/tls/kubernetes/k8s/scheduler/client/scheduler-apiserver-client.pem --embed-certs
+
+KUBECONFIG=/etc/kubernetes/manifests/kube-scheduler.yaml kubectl config set-context default-system --cluster default-cluster --user default-scheduler
+
+KUBECONFIG=/etc/kubernetes/manifests/kube-scheduler.yaml kubectl config use-context default-system
+
+chmod 644 /etc/kubernetes/manifests/kube-scheduler.yaml
+
+==================
+cat << EOF  > /usr/lib/systemd/system/kube-scheduler.service
+[Unit]
+Description=KUBE-SCHEDULER 
+
+[Service]
+User=osboxes
+Restart=on-failure
+TimeoutSec=900
+RestartSec=30s
+ExecStart=/usr/bin/kube-scheduler \\
+--bind-address=`hostname -i` \\
+--client-ca-file=/etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \\
+--tls-cert-file=/etc/pki/tls/kubernetes/k8s/scheduler/server/scheduler-server.pem \\
+--tls-private-key-file=/etc/pki/tls/kubernetes/k8s/scheduler/server/private/scheduler-server-key.pem \\
+--leader-elect \\
+--leader-elect-resource-lock=endpoints \\
+--leader-elect-resource-name=kube-scheduler \\
+--kubeconfig=/etc/kubernetes/manifests/kube-scheduler.yaml
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+
+systemctl enable kube-scheduler
+systemctl stop kube-scheduler
+systemctl start kube-scheduler
+systemctl status kube-scheduler

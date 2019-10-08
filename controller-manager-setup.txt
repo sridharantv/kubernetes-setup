@@ -1,0 +1,50 @@
+mkdir -p /etc/kubernetes/manifests
+
+KUBECONFIG=/etc/kubernetes/manifests/kube-controller-manager.yaml kubectl config set-cluster default-cluster --server=https://192.168.101.124:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
+
+KUBECONFIG=/etc/kubernetes/manifests/kube-controller-manager.yaml kubectl config set-credentials default-controller-manager --client-key /etc/pki/tls/kubernetes/k8s/controller-manager/client/private/controller-manager-apiserver-client-key.pem --client-certificate /etc/pki/tls/kubernetes/k8s/controller-manager/client/controller-manager-apiserver-client.pem --embed-certs
+
+KUBECONFIG=/etc/kubernetes/manifests/kube-controller-manager.yaml kubectl config set-context default-system --cluster default-cluster --user default-controller-manager
+
+KUBECONFIG=/etc/kubernetes/manifests/kube-controller-manager.yaml kubectl config use-context default-system
+
+chmod 644 /etc/kubernetes/manifests/kube-controller-manager.yaml
+==============
+cat << EOF  > /usr/lib/systemd/system/kube-controller-manager.service
+[Unit]
+Description=KUBE-CONTROLLER-MANAGER 
+
+[Service]
+User=osboxes
+Restart=on-failure
+TimeoutSec=900
+RestartSec=30s
+ExecStart=/usr/bin/kube-controller-manager \\
+--cluster-name=kubernetes \\
+--cluster-cidr=10.244.0.0/16 \\
+--service-cluster-ip-range=10.96.0.0/16 \\
+--controllers=*,bootstrapsigner,tokencleaner \\
+--leader-elect \\
+--leader-elect-resource-lock=endpoints \\
+--leader-elect-resource-name=controller-manager \\
+--use-service-account-credentials \\
+--bind-address=`hostname -i` \\
+--tls-cert-file=/etc/pki/tls/kubernetes/k8s/controller-manager/server/controller-manager-server.pem \\
+--tls-private-key-file=/etc/pki/tls/kubernetes/k8s/controller-manager/server/private/controller-manager-server-key.pem \\
+--client-ca-file=/etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \\
+--service-account-private-key-file=/etc/pki/tls/kubernetes/k8s/sa/sa-key.pem \\
+--kubeconfig=/etc/kubernetes/manifests/kube-controller-manager.yaml \\
+--cluster-signing-cert-file=/etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \\
+--cluster-signing-key-file=/etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \\
+--experimental-cluster-signing-duration 2h0m0s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+
+systemctl enable kube-controller-manager
+systemctl stop kube-controller-manager
+systemctl start kube-controller-manager
+systemctl status kube-controller-manager
