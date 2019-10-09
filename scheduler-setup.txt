@@ -1,6 +1,6 @@
 mkdir -p /etc/kubernetes/manifests
 
-KUBECONFIG=/etc/kubernetes/manifests/kube-scheduler.yaml kubectl config set-cluster default-cluster --server=https://192.168.101.124:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
+KUBECONFIG=/etc/kubernetes/manifests/kube-scheduler.yaml kubectl config set-cluster default-cluster --server=https://192.168.101.133:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
 
 KUBECONFIG=/etc/kubernetes/manifests/kube-scheduler.yaml kubectl config set-credentials default-scheduler --client-key /etc/pki/tls/kubernetes/k8s/scheduler/client/private/scheduler-apiserver-client-key.pem --client-certificate /etc/pki/tls/kubernetes/k8s/scheduler/client/scheduler-apiserver-client.pem --embed-certs
 

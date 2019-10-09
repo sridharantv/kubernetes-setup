@@ -127,7 +127,206 @@ openssl ca \
 
 ##################
 
-scp -r /etc/pki/tls/kubernetes/etcd osboxes@192.168.101.126:/etc/pki/tls/kubernetes/
-scp -r /etc/pki/tls/kubernetes/etcd osboxes@192.168.101.127:/etc/pki/tls/kubernetes/
-scp -r /etc/pki/tls/kubernetes/etcd osboxes@192.168.101.128:/etc/pki/tls/kubernetes/
+scp -r /etc/pki/tls/kubernetes/etcd/* osboxes@192.168.101.126:/etc/pki/tls/kubernetes/etcd/
+scp -r /etc/pki/tls/kubernetes/etcd/* osboxes@192.168.101.127:/etc/pki/tls/kubernetes/etcd/
+scp -r /etc/pki/tls/kubernetes/etcd/* osboxes@192.168.101.128:/etc/pki/tls/kubernetes/etcd/
 
+===================================================================================
+
+mkdir -p \
+/etc/pki/tls/kubernetes/k8s/ca/private \
+/etc/pki/tls/kubernetes/k8s/apiserver/server/private \
+/etc/pki/tls/kubernetes/k8s/apiserver/client/private \
+/etc/pki/tls/kubernetes/k8s/controller-manager/server/private \
+/etc/pki/tls/kubernetes/k8s/controller-manager/client/private \
+/etc/pki/tls/kubernetes/k8s/scheduler/server/private \
+/etc/pki/tls/kubernetes/k8s/scheduler/client/private \
+/etc/pki/tls/kubernetes/k8s/admin/client/private \
+/etc/pki/tls/kubernetes/k8s/sa
+
+openssl req \
+-x509 \
+-newkey rsa:2048 \
+-sha256 \
+-nodes \
+-keyout /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
+-out /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
+-days 3650 \
+-subj '/CN=Kubernetes Root CA'
+
+=====
+
+openssl genrsa -out /etc/pki/tls/kubernetes/k8s/sa/sa-key.pem 2048
+openssl rsa -in /etc/pki/tls/kubernetes/k8s/sa/sa-key.pem -outform PEM -pubout -out /etc/pki/tls/kubernetes/k8s/sa/sa-pub.pem
+
+======
+
+openssl req \
+-newkey rsa:2048 \
+-sha256 \
+-nodes \
+-days 365 \
+-reqexts SAN \
+-keyout /etc/pki/tls/kubernetes/k8s/apiserver/server/private/apiserver-server-key.pem \
+-out /etc/pki/tls/kubernetes/k8s/apiserver/server/apiserver-server-csr.pem \
+-subj "/CN=kubernetes" \
+-config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.cluster,DNS:kubernetes.default.svc.cluster.local,IP:192.168.101.130,IP:192.168.101.131,IP:192.168.101.132,IP:192.168.101.133,IP:10.96.0.1"))
+
+openssl ca \
+-keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
+-cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
+-days 365 \
+-extensions SERVER_CLIENT_CERT \
+-policy policy_anything \
+-in /etc/pki/tls/kubernetes/k8s/apiserver/server/apiserver-server-csr.pem \
+-out /etc/pki/tls/kubernetes/k8s/apiserver/server/apiserver-server.pem
+
+=====
+
+openssl req \
+-newkey rsa:2048 \
+-sha256 \
+-nodes \
+-days 365 \
+-keyout /etc/pki/tls/kubernetes/k8s/apiserver/client/private/apiserver-etcd-client-key.pem \
+-out /etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-etcd-client-csr.pem \
+-subj "/CN=apiserver-etcd client/O=system:masters"
+
+openssl ca \
+-keyfile /etc/pki/tls/kubernetes/etcd/ca/private/etcd-ca-key.pem \
+-cert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem \
+-days 365 \
+-extensions CLIENT_CERT \
+-policy policy_anything \
+-in /etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-etcd-client-csr.pem \
+-out /etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-etcd-client.pem
+
+=====
+
+openssl req \
+-newkey rsa:2048 \
+-sha256 \
+-nodes \
+-days 365 \
+-keyout /etc/pki/tls/kubernetes/k8s/apiserver/client/private/apiserver-kubelet-client-key.pem \
+-out /etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-kubelet-client-csr.pem \
+-subj "/CN=apiserver-kubelet client/O=system:masters"
+
+openssl ca \
+-keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
+-cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
+-days 365 \
+-extensions CLIENT_CERT \
+-policy policy_anything \
+-in /etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-kubelet-client-csr.pem \
+-out /etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-kubelet-client.pem
+
+======
+
+openssl req \
+-newkey rsa:2048 \
+-sha256 \
+-nodes \
+-days 365 \
+-keyout /etc/pki/tls/kubernetes/k8s/admin/client/private/admin-client-key.pem \
+-out /etc/pki/tls/kubernetes/k8s/admin/client/admin-client-csr.pem \
+-subj "/CN=kubernetes-admin/O=system:masters"
+
+openssl ca \
+-keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
+-cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
+-days 365 \
+-extensions CLIENT_CERT \
+-policy policy_anything \
+-in /etc/pki/tls/kubernetes/k8s/admin/client/admin-client-csr.pem \
+-out /etc/pki/tls/kubernetes/k8s/admin/client/admin-client.pem
+
+
+=====
+
+openssl req \
+-newkey rsa:2048 \
+-sha256 \
+-nodes \
+-days 365 \
+-keyout /etc/pki/tls/kubernetes/k8s/controller-manager/client/private/controller-manager-apiserver-client-key.pem \
+-out /etc/pki/tls/kubernetes/k8s/controller-manager/client/controller-manager-apiserver-client-csr.pem \
+-subj "/CN=system:kube-controller-manager"
+
+openssl ca \
+-keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
+-cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
+-days 365 \
+-extensions CLIENT_CERT \
+-policy policy_anything \
+-in /etc/pki/tls/kubernetes/k8s/controller-manager/client/controller-manager-apiserver-client-csr.pem \
+-out /etc/pki/tls/kubernetes/k8s/controller-manager/client/controller-manager-apiserver-client.pem
+
+=====
+
+openssl req \
+-newkey rsa:2048 \
+-sha256 \
+-nodes \
+-days 365 \
+-reqexts SAN \
+-config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:controller-manager,IP:192.168.101.130,IP:192.168.101.131,IP:192.168.101.132")) \
+-keyout /etc/pki/tls/kubernetes/k8s/controller-manager/server/private/controller-manager-server-key.pem \
+-out /etc/pki/tls/kubernetes/k8s/controller-manager/server/controller-manager-server-csr.pem \
+-subj "/CN=controller-manager"
+
+openssl ca \
+-keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
+-cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
+-days 365 \
+-extensions SERVER_CLIENT_CERT \
+-policy policy_anything \
+-in /etc/pki/tls/kubernetes/k8s/controller-manager/server/controller-manager-server-csr.pem \
+-out /etc/pki/tls/kubernetes/k8s/controller-manager/server/controller-manager-server.pem
+
+===========
+
+openssl req \
+-newkey rsa:2048 \
+-sha256 \
+-nodes \
+-days 365 \
+-keyout /etc/pki/tls/kubernetes/k8s/scheduler/client/private/scheduler-apiserver-client-key.pem \
+-out /etc/pki/tls/kubernetes/k8s/scheduler/client/scheduler-apiserver-client-csr.pem \
+-subj "/CN=system:kube-scheduler"
+
+openssl ca \
+-keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
+-cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
+-days 365 \
+-extensions CLIENT_CERT \
+-policy policy_anything \
+-in /etc/pki/tls/kubernetes/k8s/scheduler/client/scheduler-apiserver-client-csr.pem \
+-out /etc/pki/tls/kubernetes/k8s/scheduler/client/scheduler-apiserver-client.pem
+
+======
+
+openssl req \
+-newkey rsa:2048 \
+-sha256 \
+-nodes \
+-days 365 \
+-reqexts SAN \
+-config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:scheduler,IP:192.168.101.130,IP:192.168.101.131,IP:192.168.101.132")) \
+-keyout /etc/pki/tls/kubernetes/k8s/scheduler/server/private/scheduler-server-key.pem \
+-out /etc/pki/tls/kubernetes/k8s/scheduler/server/scheduler-server-csr.pem \
+-subj "/CN=scheduler"
+
+openssl ca \
+-keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
+-cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
+-days 365 \
+-extensions SERVER_CLIENT_CERT \
+-policy policy_anything \
+-in /etc/pki/tls/kubernetes/k8s/scheduler/server/scheduler-server-csr.pem \
+-out /etc/pki/tls/kubernetes/k8s/scheduler/server/scheduler-server.pem
+
+========================
+
+scp -r /etc/pki/tls/kubernetes/k8s/* osboxes@192.168.101.130:/etc/pki/tls/kubernetes/k8s/
+scp /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem osboxes@192.168.101.130:/etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem

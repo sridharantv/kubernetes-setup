@@ -1,201 +1,21 @@
-openssl req \
--x509 \
--newkey rsa:2048 \
--sha256 \
--nodes \
--keyout /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
--out /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
--days 3650 \
--subj '/CN=Kubernetes Root CA'
-
-=====
+setenforce 0
+systemctl stop firewalld
+systemctl disable firewalld
 
 mkdir -p \
-/etc/pki/tls/kubernetes/k8s/ca/private \
-/etc/pki/tls/kubernetes/k8s/apiserver/server/private \
-/etc/pki/tls/kubernetes/k8s/apiserver/client/private \
-/etc/pki/tls/kubernetes/k8s/controller-manager/server/private \
-/etc/pki/tls/kubernetes/k8s/controller-manager/client/private \
-/etc/pki/tls/kubernetes/k8s/scheduler/server/private \
-/etc/pki/tls/kubernetes/k8s/scheduler/client/private \
-/etc/pki/tls/kubernetes/k8s/admin/client/private \
-/etc/pki/tls/kubernetes/k8s/sa
+/etc/pki/tls/kubernetes/k8s/
 
-=====
+mkdir -p \
+/etc/pki/tls/kubernetes/etcd/ca
 
-openssl genrsa -out /etc/pki/tls/kubernetes/k8s/sa/sa-key.pem 2048
-openssl rsa -in /etc/pki/tls/kubernetes/k8s/sa/sa-key.pem -outform PEM -pubout -out /etc/pki/tls/kubernetes/k8s/sa/sa-pub.pem
+chown -R osboxes:osboxes /etc/pki/tls/kubernetes
 
-======
+cd /home/osboxes
+tar -zxvf kubernetes-server-linux-amd64.tar.gz
+mv -f /home/osboxes/kubernetes/server/bin/kube-apiserver /usr/bin/
+mv -f /home/osboxes/kubernetes/server/bin/kube-controller-manager /usr/bin/
+mv -f /home/osboxes/kubernetes/server/bin/kube-scheduler /usr/bin/
 
-openssl req \
--newkey rsa:2048 \
--sha256 \
--nodes \
--days 365 \
--reqexts SAN \
--keyout /etc/pki/tls/kubernetes/k8s/apiserver/server/private/apiserver-server-key.pem \
--out /etc/pki/tls/kubernetes/k8s/apiserver/server/apiserver-server-csr.pem \
--subj "/CN=kubernetes" \
--config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.cluster,DNS:kubernetes.default.svc.cluster.local,IP:192.168.101.121,IP:192.168.101.122,IP:192.168.101.123,IP:192.168.101.124"))
-
-openssl ca \
--keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
--cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
--days 365 \
--extensions SERVER_CLIENT_CERT \
--policy policy_anything \
--in /etc/pki/tls/kubernetes/k8s/apiserver/server/apiserver-server-csr.pem \
--out /etc/pki/tls/kubernetes/k8s/apiserver/server/apiserver-server.pem
-
-=====
-
-openssl req \
--newkey rsa:2048 \
--sha256 \
--nodes \
--days 365 \
--keyout /etc/pki/tls/kubernetes/k8s/apiserver/client/private/apiserver-etcd-client-key.pem \
--out /etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-etcd-client-csr.pem \
--subj "/CN=apiserver-etcd client/O=system:masters"
-
-openssl ca \
--keyfile /etc/pki/tls/kubernetes/etcd/ca/private/etcd-ca-key.pem \
--cert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem \
--days 365 \
--extensions CLIENT_CERT \
--policy policy_anything \
--in /etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-etcd-client-csr.pem \
--out /etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-etcd-client.pem
-
-=====
-
-openssl req \
--newkey rsa:2048 \
--sha256 \
--nodes \
--days 365 \
--keyout /etc/pki/tls/kubernetes/k8s/apiserver/client/private/apiserver-kubelet-client-key.pem \
--out /etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-kubelet-client-csr.pem \
--subj "/CN=apiserver-kubelet client/O=system:masters"
-
-openssl ca \
--keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
--cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
--days 365 \
--extensions CLIENT_CERT \
--policy policy_anything \
--in /etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-kubelet-client-csr.pem \
--out /etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-kubelet-client.pem
-
-======
-
-openssl req \
--newkey rsa:2048 \
--sha256 \
--nodes \
--days 365 \
--keyout /etc/pki/tls/kubernetes/k8s/admin/client/private/admin-client-key.pem \
--out /etc/pki/tls/kubernetes/k8s/admin/client/admin-client-csr.pem \
--subj "/CN=kubernetes-admin/O=system:masters"
-
-openssl ca \
--keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
--cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
--days 365 \
--extensions CLIENT_CERT \
--policy policy_anything \
--in /etc/pki/tls/kubernetes/k8s/admin/client/admin-client-csr.pem \
--out /etc/pki/tls/kubernetes/k8s/admin/client/admin-client.pem
-
-
-=====
-
-openssl req \
--newkey rsa:2048 \
--sha256 \
--nodes \
--days 365 \
--keyout /etc/pki/tls/kubernetes/k8s/controller-manager/client/private/controller-manager-apiserver-client-key.pem \
--out /etc/pki/tls/kubernetes/k8s/controller-manager/client/controller-manager-apiserver-client-csr.pem \
--subj "/CN=system:kube-controller-manager"
-
-openssl ca \
--keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
--cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
--days 365 \
--extensions CLIENT_CERT \
--policy policy_anything \
--in /etc/pki/tls/kubernetes/k8s/controller-manager/client/controller-manager-apiserver-client-csr.pem \
--out /etc/pki/tls/kubernetes/k8s/controller-manager/client/controller-manager-apiserver-client.pem
-
-=====
-
-openssl req \
--newkey rsa:2048 \
--sha256 \
--nodes \
--days 365 \
--reqexts SAN \
--config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:controller-manager,IP:192.168.101.121,IP:192.168.101.122,IP:192.168.101.123")) \
--keyout /etc/pki/tls/kubernetes/k8s/controller-manager/server/private/controller-manager-server-key.pem \
--out /etc/pki/tls/kubernetes/k8s/controller-manager/server/controller-manager-server-csr.pem \
--subj "/CN=controller-manager"
-
-openssl ca \
--keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
--cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
--days 365 \
--extensions SERVER_CLIENT_CERT \
--policy policy_anything \
--in /etc/pki/tls/kubernetes/k8s/controller-manager/server/controller-manager-server-csr.pem \
--out /etc/pki/tls/kubernetes/k8s/controller-manager/server/controller-manager-server.pem
-
-===========
-
-openssl req \
--newkey rsa:2048 \
--sha256 \
--nodes \
--days 365 \
--keyout /etc/pki/tls/kubernetes/k8s/scheduler/client/private/scheduler-apiserver-client-key.pem \
--out /etc/pki/tls/kubernetes/k8s/scheduler/client/scheduler-apiserver-client-csr.pem \
--subj "/CN=system:kube-scheduler"
-
-openssl ca \
--keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
--cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
--days 365 \
--extensions CLIENT_CERT \
--policy policy_anything \
--in /etc/pki/tls/kubernetes/k8s/scheduler/client/scheduler-apiserver-client-csr.pem \
--out /etc/pki/tls/kubernetes/k8s/scheduler/client/scheduler-apiserver-client.pem
-
-======
-
-openssl req \
--newkey rsa:2048 \
--sha256 \
--nodes \
--days 365 \
--reqexts SAN \
--config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:scheduler,IP:192.168.101.121,IP:192.168.101.122,IP:192.168.101.123")) \
--keyout /etc/pki/tls/kubernetes/k8s/scheduler/server/private/scheduler-server-key.pem \
--out /etc/pki/tls/kubernetes/k8s/scheduler/server/scheduler-server-csr.pem \
--subj "/CN=scheduler"
-
-openssl ca \
--keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
--cert /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \
--days 365 \
--extensions SERVER_CLIENT_CERT \
--policy policy_anything \
--in /etc/pki/tls/kubernetes/k8s/scheduler/server/scheduler-server-csr.pem \
--out /etc/pki/tls/kubernetes/k8s/scheduler/server/scheduler-server.pem
-
-#########################################
-
-scp -r osboxes@192.168.101.118:/etc/pki/tls/kubernetes/k8s/* /etc/pki/tls/kubernetes/k8s/
 
 ###########################################
 cat << EOF  > /usr/lib/systemd/system/kube-apiserver.service
@@ -212,7 +32,7 @@ ExecStart=/usr/bin/kube-apiserver \\
   --etcd-cafile=/etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem \\
   --etcd-certfile=/etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-etcd-client.pem \\
   --etcd-keyfile=/etc/pki/tls/kubernetes/k8s/apiserver/client/private/apiserver-etcd-client-key.pem \\
-  --etcd-servers=https://192.168.101.118:2379,https://192.168.101.119:2379,https://192.168.101.120:2379 \\
+  --etcd-servers=https://192.168.101.126:2379,https://192.168.101.127:2379,https://192.168.101.128:2379 \\
   --bind-address=`hostname -i` \\
   --secure-port=6443 \\
   --tls-cert-file=/etc/pki/tls/kubernetes/k8s/apiserver/server/apiserver-server.pem \\
@@ -244,7 +64,7 @@ systemctl status kube-apiserver
 
 
 ############################
-haproxy
+haproxy - yum install haproxy.x86_64
 =======
 global
    user haproxy
@@ -269,17 +89,18 @@ backend k8s-api
    option tcp-check
    balance roundrobin
    default-server inter 10s downinter 5s rise 2 fall 2 slowstart 60s maxconn 250 maxqueue 256 weight 100
-       server apiserver1 192.168.101.121:6443 check
-       server apiserver2 192.168.101.122:6443 check
-       server apiserver3 192.168.101.123:6443 check
+       server apiserver1 192.168.101.130:6443 check
+       server apiserver2 192.168.101.131:6443 check
+       server apiserver3 192.168.101.132:6443 check
 
 
 
 ###########
+mv -f /home/osboxes/kubernetes/server/bin/kubectl /usr/bin/
 
 mkdir -p /etc/kubernetes/manifests
 
-KUBECONFIG=~/.kube/config kubectl config set-cluster default-cluster --server=https://192.168.101.124:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
+KUBECONFIG=~/.kube/config kubectl config set-cluster default-cluster --server=https://192.168.101.133:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
 
 KUBECONFIG=~/.kube/config kubectl config set-credentials default-admin --client-key /etc/pki/tls/kubernetes/k8s/admin/client/private/admin-client-key.pem --client-certificate /etc/pki/tls/kubernetes/k8s/admin/client/admin-client.pem --embed-certs
 
@@ -314,13 +135,61 @@ stringData:
   usage-bootstrap-signing: "true"
 
   # Extra groups to authenticate the token as. Must start with "system:bootstrappers:"
-  auth-extra-groups: system:bootstrappers:worker,system:bootstrappers:ingress
+  auth-extra-groups: system:bootstrappers:worker
+EOF
+
+cat << EOF > /tmp/create-csrs-for-bootstrapping.yaml
+# enable bootstrapping nodes to create CSR
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: create-csrs-for-bootstrapping
+subjects:
+- kind: Group
+  name: system:bootstrappers
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: system:node-bootstrapper
+  apiGroup: rbac.authorization.k8s.io
 EOF
 
 
+cat << EOF > /tmp/auto-approve-csrs-for-group.yaml
+# Approve all CSRs for the group "system:bootstrappers"
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: auto-approve-csrs-for-group
+subjects:
+- kind: Group
+  name: system:bootstrappers
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: system:certificates.k8s.io:certificatesigningrequests:nodeclient
+  apiGroup: rbac.authorization.k8s.io
+EOF
 
+cat << EOF > /tmp/auto-approve-renewals-for-nodes.yaml
+# Approve renewal CSRs for the group "system:nodes"
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: auto-approve-renewals-for-nodes
+subjects:
+- kind: Group
+  name: system:nodes
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: system:certificates.k8s.io:certificatesigningrequests:selfnodeclient
+  apiGroup: rbac.authorization.k8s.io
+EOF
 
-
+kubectl apply -f /tmp/create-csrs-for-bootstrapping.yaml
+kubectl apply -f /tmp/auto-approve-csrs-for-group.yaml
+kubectl apply -f /tmp/auto-approve-renewals-for-nodes.yaml
 
 
 

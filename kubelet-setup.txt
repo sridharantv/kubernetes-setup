@@ -1,9 +1,43 @@
-mkdir -p /etc/kubernetes
+setenforce 0
+systemctl stop firewalld
+systemctl disable firewalld
+
+swapoff -a
+
+mkdir -p /etc/kubernetes/manifests
 mkdir -p /etc/kubelet
 mkdir -p /etc/kubelet/certs
 chown osboxes:osboxes /etc/kubernetes /etc/kubelet /etc/kubelet/certs
-scp osboxes@192.168.101.118:/etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem /etc/kubernetes/ca.pem
+
+scp /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem osboxes@192.168.101.134:/etc/kubernetes/ca.pem
+
 chown osboxes:osboxes /etc/kubernetes/ca.pem
+
+curl -o install_docker.sh https://get.docker.com
+sh install_docker.sh
+sudo usermod -aG docker osboxes
+
+mkdir /etc/docker
+# Setup daemon.
+cat > /etc/docker/daemon.json <<EOF
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m"
+  },
+  "storage-driver": "overlay2",
+  "storage-opts": [
+    "overlay2.override_kernel_check=true"
+  ]
+}
+EOF
+
+mkdir -p /etc/systemd/system/docker.service.d
+
+# Restart Docker
+systemctl daemon-reload
+systemctl restart docker
 
 cat << EOF > /etc/kubelet/bootstrap-kubeconfig
 apiVersion: v1
@@ -11,7 +45,7 @@ kind: Config
 clusters:
 - cluster:
     certificate-authority: /etc/kubernetes/ca.pem
-    server: https://192.168.101.124
+    server: https://192.168.101.133
   name: bootstrap
 contexts:
 - context:
@@ -26,6 +60,35 @@ users:
     token: 07401b.f395accd246ae52d
 EOF
 
+cd /home/osboxes
+tar -zxvf kubernetes-node-linux-amd64.tar.gz
+mv /home/osboxes/kubernetes/node/bin/kubelet /usr/bin
+
+mkdir -p /opt/cni/bin
+mkdir -p /etc/cni/net.d
+mv /home/osboxes/cni-plugins-linux-amd64-v0.8.2.tgz /opt/cni/bin
+cd /opt/cni/bin
+tar -zxvf cni-plugins-linux-amd64-v0.8.2.tgz
+
+cat << EOF > 10-bridge.conf
+{
+    "cniVersion": "0.3.1",
+    "name": "bridge",
+    "type": "bridge",
+    "bridge": "cnio0",
+    "isGateway": true,
+    "ipMasq": true,
+    "ipam": {
+        "type": "host-local",
+        "ranges": [
+          [{"subnet": "10.32.0.0/12"}]
+        ],
+        "routes": [{"dst": "0.0.0.0/0"}]
+    }
+}
+EOF
+
+
 cat << EOF  > /usr/lib/systemd/system/kubelet.service
 [Unit]
 Description=KUBELET
@@ -37,11 +100,14 @@ ExecStart=/usr/bin/kubelet \\
 --cert-dir=/etc/kubelet/certs \\
 --kubeconfig=/etc/kubelet/kubelet-kubeconfig.yaml \\
 --pod-manifest-path=/etc/kubernetes/manifests \\
---node-ip=`hostname -i` \\
 --register-node \\
 --rotate-certificates \\
---cluster-dns=10.96.0.10 \\
---rotate-server-certificates
+--rotate-server-certificates \\
+--network-plugin=cni \\
+--cni-conf-dir=/etc/cni/net.d \\
+--cni-bin-dir=/opt/cni/bin \\
+--cluster-dns=10.96.0.10
+
 
 [Install]
 WantedBy=multi-user.target

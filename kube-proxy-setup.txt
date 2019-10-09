@@ -1,3 +1,6 @@
+mv /home/osboxes/kubernetes/node/bin/kube-proxy /usr/bin
+
+
 cat << EOF  > /usr/lib/systemd/system/kube-proxy.service
 [Unit]
 Description=KUBEPROXY
@@ -5,7 +8,8 @@ Description=KUBEPROXY
 [Service]
 ExecStart=/usr/bin/kube-proxy \\
 --kubeconfig=/etc/kubelet/kubelet-kubeconfig.yaml \\
---proxy-mode=iptables
+--proxy-mode=iptables \\
+--cluster-cidr=10.32.0.0/12
 
 [Install]
 WantedBy=multi-user.target

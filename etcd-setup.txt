@@ -18,8 +18,8 @@ mkdir /data
 chown osboxes:osboxes /data
 
 mkdir -p \
-/etc/pki/tls/kubernetes
-chown osboxes:osboxes /etc/pki/tls/kubernetes
+/etc/pki/tls/kubernetes/etcd
+chown osboxes:osboxes /etc/pki/tls/kubernetes/etcd
 
 #############################
 systemctl stop etcd
