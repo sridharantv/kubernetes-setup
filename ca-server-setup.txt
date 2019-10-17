@@ -50,9 +50,9 @@ openssl req \
 
 name=etcd;
 type=server
-ip1=192.168.101.126
-ip2=192.168.101.127
-ip3=192.168.101.128
+ip1=192.168.101.138
+ip2=192.168.101.139
+ip3=192.168.101.140
 
 openssl req \
 -newkey rsa:2048 \
@@ -78,9 +78,9 @@ openssl ca \
 
 name=etcd;
 type=peer
-ip1=192.168.101.126
-ip2=192.168.101.127
-ip3=192.168.101.128
+ip1=192.168.101.138
+ip2=192.168.101.139
+ip3=192.168.101.140
 
 openssl req \
 -newkey rsa:2048 \
@@ -127,9 +127,9 @@ openssl ca \
 
 ##################
 
-scp -r /etc/pki/tls/kubernetes/etcd/* osboxes@192.168.101.126:/etc/pki/tls/kubernetes/etcd/
-scp -r /etc/pki/tls/kubernetes/etcd/* osboxes@192.168.101.127:/etc/pki/tls/kubernetes/etcd/
-scp -r /etc/pki/tls/kubernetes/etcd/* osboxes@192.168.101.128:/etc/pki/tls/kubernetes/etcd/
+scp -r /etc/pki/tls/kubernetes/etcd/* osboxes@192.168.101.138:/etc/pki/tls/kubernetes/etcd/
+scp -r /etc/pki/tls/kubernetes/etcd/* osboxes@192.168.101.139:/etc/pki/tls/kubernetes/etcd/
+scp -r /etc/pki/tls/kubernetes/etcd/* osboxes@192.168.101.140:/etc/pki/tls/kubernetes/etcd/
 
 ===================================================================================
 
@@ -170,7 +170,7 @@ openssl req \
 -keyout /etc/pki/tls/kubernetes/k8s/apiserver/server/private/apiserver-server-key.pem \
 -out /etc/pki/tls/kubernetes/k8s/apiserver/server/apiserver-server-csr.pem \
 -subj "/CN=kubernetes" \
--config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.cluster,DNS:kubernetes.default.svc.cluster.local,IP:192.168.101.130,IP:192.168.101.131,IP:192.168.101.132,IP:192.168.101.133,IP:10.96.0.1"))
+-config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.cluster,DNS:kubernetes.default.svc.cluster.local,IP:192.168.101.141,IP:192.168.101.142,IP:192.168.101.143,IP:192.168.101.144,IP:10.96.0.1"))
 
 openssl ca \
 -keyfile /etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \
@@ -270,7 +270,7 @@ openssl req \
 -nodes \
 -days 365 \
 -reqexts SAN \
--config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:controller-manager,IP:192.168.101.130,IP:192.168.101.131,IP:192.168.101.132")) \
+-config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:controller-manager,IP:192.168.101.141,IP:192.168.101.142,IP:192.168.101.143")) \
 -keyout /etc/pki/tls/kubernetes/k8s/controller-manager/server/private/controller-manager-server-key.pem \
 -out /etc/pki/tls/kubernetes/k8s/controller-manager/server/controller-manager-server-csr.pem \
 -subj "/CN=controller-manager"
@@ -312,7 +312,7 @@ openssl req \
 -nodes \
 -days 365 \
 -reqexts SAN \
--config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:scheduler,IP:192.168.101.130,IP:192.168.101.131,IP:192.168.101.132")) \
+-config <(cat /etc/pki/tls/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:scheduler,IP:192.168.101.141,IP:192.168.101.142,IP:192.168.101.143")) \
 -keyout /etc/pki/tls/kubernetes/k8s/scheduler/server/private/scheduler-server-key.pem \
 -out /etc/pki/tls/kubernetes/k8s/scheduler/server/scheduler-server-csr.pem \
 -subj "/CN=scheduler"
@@ -328,5 +328,5 @@ openssl ca \
 
 ========================
 
-scp -r /etc/pki/tls/kubernetes/k8s/* osboxes@192.168.101.130:/etc/pki/tls/kubernetes/k8s/
-scp /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem osboxes@192.168.101.130:/etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem
+scp -r /etc/pki/tls/kubernetes/k8s/* osboxes@192.168.101.141:/etc/pki/tls/kubernetes/k8s/
+scp /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem osboxes@192.168.101.141:/etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem

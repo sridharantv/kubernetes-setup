@@ -1,14 +1,14 @@
-mkdir -p /etc/kubernetes/manifests
+mkdir -p /etc/kubernetes
 
-KUBECONFIG=/etc/kubernetes/manifests/kube-scheduler.yaml kubectl config set-cluster default-cluster --server=https://192.168.101.133:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
+KUBECONFIG=/etc/kubernetes/kube-scheduler.conf kubectl config set-cluster default-cluster --server=https://192.168.101.144:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
 
-KUBECONFIG=/etc/kubernetes/manifests/kube-scheduler.yaml kubectl config set-credentials default-scheduler --client-key /etc/pki/tls/kubernetes/k8s/scheduler/client/private/scheduler-apiserver-client-key.pem --client-certificate /etc/pki/tls/kubernetes/k8s/scheduler/client/scheduler-apiserver-client.pem --embed-certs
+KUBECONFIG=/etc/kubernetes/kube-scheduler.conf kubectl config set-credentials default-scheduler --client-key /etc/pki/tls/kubernetes/k8s/scheduler/client/private/scheduler-apiserver-client-key.pem --client-certificate /etc/pki/tls/kubernetes/k8s/scheduler/client/scheduler-apiserver-client.pem --embed-certs
 
-KUBECONFIG=/etc/kubernetes/manifests/kube-scheduler.yaml kubectl config set-context default-system --cluster default-cluster --user default-scheduler
+KUBECONFIG=/etc/kubernetes/kube-scheduler.conf kubectl config set-context default-system --cluster default-cluster --user default-scheduler
 
-KUBECONFIG=/etc/kubernetes/manifests/kube-scheduler.yaml kubectl config use-context default-system
+KUBECONFIG=/etc/kubernetes/kube-scheduler.conf kubectl config use-context default-system
 
-chmod 644 /etc/kubernetes/manifests/kube-scheduler.yaml
+chmod 644 /etc/kubernetes/kube-scheduler.conf
 
 ==================
 cat << EOF  > /usr/lib/systemd/system/kube-scheduler.service
@@ -28,7 +28,7 @@ ExecStart=/usr/bin/kube-scheduler \\
 --leader-elect \\
 --leader-elect-resource-lock=endpoints \\
 --leader-elect-resource-name=kube-scheduler \\
---kubeconfig=/etc/kubernetes/manifests/kube-scheduler.yaml
+--kubeconfig=/etc/kubernetes/kube-scheduler.conf
 
 [Install]
 WantedBy=multi-user.target

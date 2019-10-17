@@ -1,4 +1,20 @@
 setenforce 0
+cp /etc/selinux/config /etc/selinux/config.orig
+
+cat << EOF > /etc/selinux/config
+# This file controls the state of SELinux on the system.
+# SELINUX= can take one of these three values:
+#     enforcing - SELinux security policy is enforced.
+#     permissive - SELinux prints warnings instead of enforcing.
+#     disabled - No SELinux policy is loaded.
+SELINUX=disabled
+# SELINUXTYPE= can take one of three values:
+#     targeted - Targeted processes are protected,
+#     minimum - Modification of targeted policy. Only selected processes are protected.
+#     mls - Multi Level Security protection.
+SELINUXTYPE=targeted
+EOF
+
 systemctl stop firewalld
 systemctl disable firewalld
 
@@ -9,7 +25,7 @@ mkdir -p /etc/kubelet
 mkdir -p /etc/kubelet/certs
 chown osboxes:osboxes /etc/kubernetes /etc/kubelet /etc/kubelet/certs
 
-scp /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem osboxes@192.168.101.134:/etc/kubernetes/ca.pem
+scp /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem osboxes@192.168.101.146:/etc/kubernetes/ca.pem
 
 chown osboxes:osboxes /etc/kubernetes/ca.pem
 
@@ -37,7 +53,10 @@ mkdir -p /etc/systemd/system/docker.service.d
 
 # Restart Docker
 systemctl daemon-reload
+systemctl enable docker
 systemctl restart docker
+systemctl status docker
+
 
 cat << EOF > /etc/kubelet/bootstrap-kubeconfig
 apiVersion: v1
@@ -45,7 +64,7 @@ kind: Config
 clusters:
 - cluster:
     certificate-authority: /etc/kubernetes/ca.pem
-    server: https://192.168.101.133
+    server: https://192.168.101.144
   name: bootstrap
 contexts:
 - context:
@@ -70,23 +89,6 @@ mv /home/osboxes/cni-plugins-linux-amd64-v0.8.2.tgz /opt/cni/bin
 cd /opt/cni/bin
 tar -zxvf cni-plugins-linux-amd64-v0.8.2.tgz
 
-cat << EOF > 10-bridge.conf
-{
-    "cniVersion": "0.3.1",
-    "name": "bridge",
-    "type": "bridge",
-    "bridge": "cnio0",
-    "isGateway": true,
-    "ipMasq": true,
-    "ipam": {
-        "type": "host-local",
-        "ranges": [
-          [{"subnet": "10.32.0.0/12"}]
-        ],
-        "routes": [{"dst": "0.0.0.0/0"}]
-    }
-}
-EOF
 
 
 cat << EOF  > /usr/lib/systemd/system/kubelet.service
@@ -94,6 +96,7 @@ cat << EOF  > /usr/lib/systemd/system/kubelet.service
 Description=KUBELET
 
 [Service]
+Restart=on-failure
 ExecStart=/usr/bin/kubelet \\
 --bootstrap-kubeconfig=/etc/kubelet/bootstrap-kubeconfig \\
 --cgroup-driver=systemd \\
@@ -119,5 +122,20 @@ systemctl enable kubelet
 systemctl stop kubelet
 systemctl start kubelet
 systemctl status kubelet
+
+###########################
+
+
+kubectl label node k8s-master01 node-role.kubernetes.io/master
+kubectl label node k8s-master02 node-role.kubernetes.io/master
+kubectl label node k8s-master03 node-role.kubernetes.io/master
+
+kubectl taint nodes k8s-master01 node-role.kubernetes.io/master=true:NoSchedule
+kubectl taint nodes k8s-master02 node-role.kubernetes.io/master=true:NoSchedule
+kubectl taint nodes k8s-master03 node-role.kubernetes.io/master=true:NoSchedule
+
+kubectl label node k8s-node01 node-role.kubernetes.io/worker
+kubectl label node k8s-node02 node-role.kubernetes.io/worker
+kubectl label node k8s-node03 node-role.kubernetes.io/worker
 
 

@@ -1,14 +1,14 @@
-mkdir -p /etc/kubernetes/manifests
+mkdir -p /etc/kubernetes
 
-KUBECONFIG=/etc/kubernetes/manifests/kube-controller-manager.yaml kubectl config set-cluster default-cluster --server=https://192.168.101.133:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
+KUBECONFIG=/etc/kubernetes/kube-controller-manager.conf kubectl config set-cluster default-cluster --server=https://192.168.101.144:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
 
-KUBECONFIG=/etc/kubernetes/manifests/kube-controller-manager.yaml kubectl config set-credentials default-controller-manager --client-key /etc/pki/tls/kubernetes/k8s/controller-manager/client/private/controller-manager-apiserver-client-key.pem --client-certificate /etc/pki/tls/kubernetes/k8s/controller-manager/client/controller-manager-apiserver-client.pem --embed-certs
+KUBECONFIG=/etc/kubernetes/kube-controller-manager.conf kubectl config set-credentials default-controller-manager --client-key /etc/pki/tls/kubernetes/k8s/controller-manager/client/private/controller-manager-apiserver-client-key.pem --client-certificate /etc/pki/tls/kubernetes/k8s/controller-manager/client/controller-manager-apiserver-client.pem --embed-certs
 
-KUBECONFIG=/etc/kubernetes/manifests/kube-controller-manager.yaml kubectl config set-context default-system --cluster default-cluster --user default-controller-manager
+KUBECONFIG=/etc/kubernetes/kube-controller-manager.conf kubectl config set-context default-system --cluster default-cluster --user default-controller-manager
 
-KUBECONFIG=/etc/kubernetes/manifests/kube-controller-manager.yaml kubectl config use-context default-system
+KUBECONFIG=/etc/kubernetes/kube-controller-manager.conf kubectl config use-context default-system
 
-chmod 644 /etc/kubernetes/manifests/kube-controller-manager.yaml
+chmod 644 /etc/kubernetes/kube-controller-manager.conf
 ==============
 cat << EOF  > /usr/lib/systemd/system/kube-controller-manager.service
 [Unit]
@@ -33,10 +33,10 @@ ExecStart=/usr/bin/kube-controller-manager \\
 --tls-private-key-file=/etc/pki/tls/kubernetes/k8s/controller-manager/server/private/controller-manager-server-key.pem \\
 --client-ca-file=/etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \\
 --service-account-private-key-file=/etc/pki/tls/kubernetes/k8s/sa/sa-key.pem \\
---kubeconfig=/etc/kubernetes/manifests/kube-controller-manager.yaml \\
+--kubeconfig=/etc/kubernetes/kube-controller-manager.conf \\
 --cluster-signing-cert-file=/etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem \\
 --cluster-signing-key-file=/etc/pki/tls/kubernetes/k8s/ca/private/k8s-ca-key.pem \\
---experimental-cluster-signing-duration 6h0m0s
+--experimental-cluster-signing-duration 24h0m0s
 
 [Install]
 WantedBy=multi-user.target

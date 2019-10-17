@@ -26,9 +26,9 @@ systemctl stop etcd
 
 name_var=etcd;
 instance=03
-ip1=192.168.101.126
-ip2=192.168.101.127
-ip3=192.168.101.128
+ip1=192.168.101.138
+ip2=192.168.101.139
+ip3=192.168.101.140
 
 cat << EOF  > /usr/lib/systemd/system/etcd.service
 [Unit]
@@ -80,9 +80,9 @@ systemctl status etcd
 
 =====================
 
-ip1=192.168.101.126
-ip2=192.168.101.127
-ip3=192.168.101.128
+ip1=192.168.101.138
+ip2=192.168.101.139
+ip3=192.168.101.140
 
 ETCDCTL_API=3 etcdctl --endpoints=${ip1}:2379,${ip2}:2379,${ip3}:2379 --cacert /etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem --cert /etc/pki/tls/kubernetes/etcd/client/etcd-client.pem --key /etc/pki/tls/kubernetes/etcd/client/private/etcd-client-key.pem endpoint health
 
