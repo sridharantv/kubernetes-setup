@@ -31,9 +31,14 @@ tar -zxvf kubernetes-server-linux-amd64.tar.gz
 mv -f /home/osboxes/kubernetes/server/bin/kube-apiserver /usr/bin/
 mv -f /home/osboxes/kubernetes/server/bin/kube-controller-manager /usr/bin/
 mv -f /home/osboxes/kubernetes/server/bin/kube-scheduler /usr/bin/
+mv -f /home/osboxes/kubernetes/server/bin/kubectl /usr/bin/
 
 
 ###########################################
+etcd_ip1=192.168.43.187
+etcd_ip2=192.168.43.76
+etcd_ip3=192.168.43.47
+
 cat << EOF  > /usr/lib/systemd/system/kube-apiserver.service
 [Unit]
 Description=KUBE-APISERVER 
@@ -48,7 +53,7 @@ ExecStart=/usr/bin/kube-apiserver \\
   --etcd-cafile=/etc/pki/tls/kubernetes/etcd/ca/etcd-ca.pem \\
   --etcd-certfile=/etc/pki/tls/kubernetes/k8s/apiserver/client/apiserver-etcd-client.pem \\
   --etcd-keyfile=/etc/pki/tls/kubernetes/k8s/apiserver/client/private/apiserver-etcd-client-key.pem \\
-  --etcd-servers=https://192.168.101.138:2379,https://192.168.101.139:2379,https://192.168.101.140:2379 \\
+  --etcd-servers=https://${etcd_ip1}:2379,https://${etcd_ip2}:2379,https://${etcd_ip3}:2379 \\
   --bind-address=`hostname -i` \\
   --secure-port=6443 \\
   --tls-cert-file=/etc/pki/tls/kubernetes/k8s/apiserver/server/apiserver-server.pem \\
@@ -110,6 +115,11 @@ yum install -y haproxy.x86_64
 
 cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.orig
 
+
+ip1=192.168.43.39
+ip2=192.168.43.33
+ip3=192.168.43.73
+
 cat << EOF > /etc/haproxy/haproxy.cfg
 global
    user haproxy
@@ -134,9 +144,9 @@ backend k8s-api
    option tcp-check
    balance roundrobin
    default-server inter 10s downinter 5s rise 2 fall 2 slowstart 60s maxconn 250 maxqueue 256 weight 100
-       server apiserver1 192.168.101.141:6443 check
-       server apiserver2 192.168.101.142:6443 check
-       server apiserver3 192.168.101.143:6443 check
+       server apiserver1 ${ip1}:6443 check
+       server apiserver2 ${ip2}:6443 check
+       server apiserver3 ${ip3}:6443 check
 EOF
 
 systemctl enable haproxy
@@ -145,11 +155,13 @@ systemctl status haproxy
 
 
 ###########
-mv -f /home/osboxes/kubernetes/server/bin/kubectl /usr/bin/
+
 
 mkdir -p /etc/kubernetes/manifests
 
-KUBECONFIG=~/.kube/config kubectl config set-cluster default-cluster --server=https://192.168.101.144:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
+ip4=192.168.43.57
+
+KUBECONFIG=~/.kube/config kubectl config set-cluster default-cluster --server=https://${ip4}:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
 
 KUBECONFIG=~/.kube/config kubectl config set-credentials default-admin --client-key /etc/pki/tls/kubernetes/k8s/admin/client/private/admin-client-key.pem --client-certificate /etc/pki/tls/kubernetes/k8s/admin/client/admin-client.pem --embed-certs
 
@@ -239,6 +251,210 @@ kubectl apply -f /tmp/bootstrap-token-secret.yaml
 kubectl apply -f /tmp/create-csrs-for-bootstrapping.yaml
 kubectl apply -f /tmp/auto-approve-csrs-for-group.yaml
 kubectl apply -f /tmp/auto-approve-renewals-for-nodes.yaml
+
+kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+
+cat << EOF > /tmp/system-node-crb.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system:node
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:node
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: system:nodes
+EOF
+
+cat << EOF > /tmp/system-node-cr.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: system:node
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - localsubjectaccessreviews
+  - subjectaccessreviews
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes/status
+  verbs:
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - pods/status
+  verbs:
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - pods/eviction
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  - persistentvolumes
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - certificates.k8s.io
+  resources:
+  - certificatesigningrequests
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - volumeattachments
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csinodes
+  verbs:
+  - create
+  - delete
+  - get
+  - patch
+  - update
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - patch
+  - update
+- apiGroups:
+  - node.k8s.io
+  resources:
+  - runtimeclasses
+  verbs:
+  - get
+  - list
+  - watch
+EOF
+
+kubectl apply -f /tmp/system-node-crb.yaml
+kubectl apply -f /tmp/system-node-cr.yaml
+
+yum install -y git
+cd
+git clone https://github.com/coredns/deployment.git
+cd /root/deployment/kubernetes
+
+./deploy.sh -i 10.96.0.10 | kubectl apply -f -
 
 
 

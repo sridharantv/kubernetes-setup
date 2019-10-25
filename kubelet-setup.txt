@@ -25,7 +25,8 @@ mkdir -p /etc/kubelet
 mkdir -p /etc/kubelet/certs
 chown osboxes:osboxes /etc/kubernetes /etc/kubelet /etc/kubelet/certs
 
-scp /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem osboxes@192.168.101.146:/etc/kubernetes/ca.pem
+ca_ip=192.168.43.148
+scp osboxes@${ca_ip}:/etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem /etc/kubernetes/ca.pem
 
 chown osboxes:osboxes /etc/kubernetes/ca.pem
 
@@ -57,6 +58,7 @@ systemctl enable docker
 systemctl restart docker
 systemctl status docker
 
+ip4=192.168.43.57
 
 cat << EOF > /etc/kubelet/bootstrap-kubeconfig
 apiVersion: v1
@@ -64,7 +66,7 @@ kind: Config
 clusters:
 - cluster:
     certificate-authority: /etc/kubernetes/ca.pem
-    server: https://192.168.101.144
+    server: https://${ip4}
   name: bootstrap
 contexts:
 - context:
@@ -126,16 +128,16 @@ systemctl status kubelet
 ###########################
 
 
-kubectl label node k8s-master01 node-role.kubernetes.io/master
-kubectl label node k8s-master02 node-role.kubernetes.io/master
-kubectl label node k8s-master03 node-role.kubernetes.io/master
+kubectl label node k8s-master01 node-role.kubernetes.io/master=true
+kubectl label node k8s-master02 node-role.kubernetes.io/master=true
+kubectl label node k8s-master03 node-role.kubernetes.io/master=true
 
 kubectl taint nodes k8s-master01 node-role.kubernetes.io/master=true:NoSchedule
 kubectl taint nodes k8s-master02 node-role.kubernetes.io/master=true:NoSchedule
 kubectl taint nodes k8s-master03 node-role.kubernetes.io/master=true:NoSchedule
 
-kubectl label node k8s-node01 node-role.kubernetes.io/worker
-kubectl label node k8s-node02 node-role.kubernetes.io/worker
-kubectl label node k8s-node03 node-role.kubernetes.io/worker
+kubectl label node k8s-node01 node-role.kubernetes.io/worker=true
+kubectl label node k8s-node02 node-role.kubernetes.io/worker=true
+kubectl label node k8s-node03 node-role.kubernetes.io/worker=true
 
 

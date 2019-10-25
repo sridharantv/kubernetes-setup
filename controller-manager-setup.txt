@@ -1,6 +1,8 @@
 mkdir -p /etc/kubernetes
 
-KUBECONFIG=/etc/kubernetes/kube-controller-manager.conf kubectl config set-cluster default-cluster --server=https://192.168.101.144:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
+ip4=192.168.43.57
+
+KUBECONFIG=/etc/kubernetes/kube-controller-manager.conf kubectl config set-cluster default-cluster --server=https://${ip4}:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
 
 KUBECONFIG=/etc/kubernetes/kube-controller-manager.conf kubectl config set-credentials default-controller-manager --client-key /etc/pki/tls/kubernetes/k8s/controller-manager/client/private/controller-manager-apiserver-client-key.pem --client-certificate /etc/pki/tls/kubernetes/k8s/controller-manager/client/controller-manager-apiserver-client.pem --embed-certs
 
@@ -9,6 +11,7 @@ KUBECONFIG=/etc/kubernetes/kube-controller-manager.conf kubectl config set-conte
 KUBECONFIG=/etc/kubernetes/kube-controller-manager.conf kubectl config use-context default-system
 
 chmod 644 /etc/kubernetes/kube-controller-manager.conf
+
 ==============
 cat << EOF  > /usr/lib/systemd/system/kube-controller-manager.service
 [Unit]

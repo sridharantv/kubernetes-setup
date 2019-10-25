@@ -1,6 +1,8 @@
 mkdir -p /etc/kubernetes
 
-KUBECONFIG=/etc/kubernetes/kube-scheduler.conf kubectl config set-cluster default-cluster --server=https://192.168.101.144:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
+ip4=192.168.43.57
+
+KUBECONFIG=/etc/kubernetes/kube-scheduler.conf kubectl config set-cluster default-cluster --server=https://${ip4}:443 --certificate-authority /etc/pki/tls/kubernetes/k8s/ca/k8s-ca.pem --embed-certs
 
 KUBECONFIG=/etc/kubernetes/kube-scheduler.conf kubectl config set-credentials default-scheduler --client-key /etc/pki/tls/kubernetes/k8s/scheduler/client/private/scheduler-apiserver-client-key.pem --client-certificate /etc/pki/tls/kubernetes/k8s/scheduler/client/scheduler-apiserver-client.pem --embed-certs
 
